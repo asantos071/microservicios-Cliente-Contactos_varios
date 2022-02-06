@@ -1,9 +1,11 @@
 package com.controller;
 
 import com.model.*;
-
+import com.service.AccesoService;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -16,9 +18,7 @@ import org.springframework.web.client.RestTemplate;
 public class personasController {
 
     @Autowired
-    RestTemplate template;
-
-    private String urlBase = "http://localhost:8080";
+    AccesoService service;
 
     @GetMapping(value = "/personas/{nombre}/{email}/{edad}", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<Persona> altaPersona(@PathVariable("nombre") String nombre,
@@ -26,18 +26,21 @@ public class personasController {
             @PathVariable("edad") int edad) {
 
         Persona persona = new Persona(nombre, email, edad);
-        template.postForLocation(urlBase + "/contactos", persona); 
-        Persona[] personas = template.getForObject(urlBase + "/contactos", Persona[].class);
-        return Arrays.asList(personas);
-
-    }
-
-    @GetMapping(value="/personas/{edad1}/{edad2}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<Persona> buscarEdades(@PathVariable("edad1") int edad1,
-    @PathVariable("edad2") int edad2){
-        Persona[] personas = template.getForObject(urlBase+ "/contactos", Persona[].class);
-        return Arrays.stream(personas)
-        .filter(p-> p.getEdad()>= edad1 && p.getEdad()<= edad2)
-        .collect(Collectors.toList());
+        CompletableFuture<List<Persona>> resultado = service.servicio(persona);
+        for (int i = 0; i < 50; i++) {
+            System.out.println("Esperando");
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+               
+            }
+        }
+        try {
+            return resultado.get();
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            return null; 
+        }
     }
 }
