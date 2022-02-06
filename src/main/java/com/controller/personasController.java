@@ -32,7 +32,7 @@ public class personasController {
 
     }
 
-    @GetMapping(value="/perosnas/{edad1}/{edad2}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value="/personas/{edad1}/{edad2}", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<Persona> buscarEdades(@PathVariable("edad1") int edad1,
     @PathVariable("edad2") int edad2){
         Persona[] personas = template.getForObject(urlBase+ "/contactos", Persona[].class);
