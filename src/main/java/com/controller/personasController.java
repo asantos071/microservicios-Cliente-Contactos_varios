@@ -7,8 +7,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,15 +30,45 @@ public class personasController {
     RestTemplate template;
 
     private String urlBase = "http://localhost:8080";
+    private HttpHeaders headers = new HttpHeaders();
+    private String user = "admin";
+    private String pwd = "admin";
+    private String token;
+
+    @PostConstruct()
+    // Al activar el controller solicito el token asociado al usuario al servicio de
+    // contactos
+    // en caso de que este correctamente logeado
+    public void autenticar() {
+        token = template.postForObject(urlBase + "/login?user=" + user + "&pwd=" + pwd, null, String.class);
+        System.out.println("Token Generado " + token);
+        // declaro la cabecera con el token para pasarlo como parametro en el servicio
+        // exchange
+        headers.add("Authorization", "Bearer " + token);
+        System.out.println(headers.getValuesAsList("Authorization"));
+    }
 
     @GetMapping(value = "/personas/{nombre}/{email}/{edad}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<Persona>> altaPersona(@PathVariable("nombre") String nombre,
             @PathVariable("email") String email,
             @PathVariable("edad") int edad) {
+
+        // Almaceno la persona-contacto a dar de alta
         Persona persona = new Persona(nombre, email, edad);
+
         try {
-            template.postForLocation(urlBase + "/contactos", persona);
-            Persona[] personas = template.getForObject(urlBase + "/contactos", Persona[].class);
+            // Le paso al servicio PosMapping el Entity con el objeto a insertar y la
+            // cabecera
+            template
+                    .exchange(urlBase + "/contactos", HttpMethod.POST, new HttpEntity<Persona>(persona, headers),
+                            String.class);
+
+            System.out.println("Creación de persona-contacto");
+            // solicito la lista de personas (co el objeto reciente creado)
+            Persona[] personas = template
+                    .exchange(urlBase + "/contactos", HttpMethod.GET, new HttpEntity<>(headers), Persona[].class)
+                    .getBody();
+            System.out.println("Entrega de lista Personas");
             return new ResponseEntity<List<Persona>>(Arrays.asList(personas), HttpStatus.OK);
 
         } catch (HttpStatusCodeException exception) {
@@ -42,10 +76,9 @@ public class personasController {
             // final
             // una cabecera con el mensaje de error, una lista vacia de personas en el
             // cuerpo
-            HttpHeaders headers = new HttpHeaders();
             headers.add("error", exception.getResponseBodyAsString());
+            System.out.println("Error en la llamada al servicio");
             return new ResponseEntity<List<Persona>>(new ArrayList<Persona>(), headers, exception.getStatusCode());
-
         }
 
     }
@@ -69,7 +102,9 @@ public class personasController {
     @GetMapping(value = "/personas/{edad1}/{edad2}", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<Persona> buscarEdades(@PathVariable("edad1") int edad1,
             @PathVariable("edad2") int edad2) {
-        Persona[] personas = template.getForObject(urlBase + "/contactos", Persona[].class);
+        Persona[] personas = template
+                .exchange(urlBase + "/contactos", HttpMethod.GET, new HttpEntity<>(headers), Persona[].class)
+                .getBody();
         return Arrays.stream(personas)
                 .filter(p -> p.getEdad() >= edad1 && p.getEdad() <= edad2)
                 .collect(Collectors.toList());
