@@ -20,7 +20,7 @@ public class personasController {
     @Autowired
     RestTemplate template;
 
-    private String urlBase = "http://localhost:8080";
+    private String urlBase = "http://servicio-contactos";
 
     @GetMapping(value = "/personas/{nombre}/{email}/{edad}", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<Persona> altaPersona(@PathVariable("nombre") String nombre,
